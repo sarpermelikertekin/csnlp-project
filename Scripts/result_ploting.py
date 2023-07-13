@@ -9,7 +9,6 @@ import transformers
 from transformers import BartTokenizer, BartForConditionalGeneration
 from summarizer import Summarizer
 
-
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.mixture import GaussianMixture
@@ -25,6 +24,10 @@ pyplot.rcParams['animation.ffmpeg_path'] = "C:\\FFmpeg\\bin\\ffmpeg.exe"
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
+
+from warnings import simplefilter
+# ignore all future warnings
+simplefilter(action='ignore', category=FutureWarning)
 
 website_dict = {
     "www.dailymail.co.uk": "dailymail",
@@ -244,7 +247,9 @@ def compare_events(event_idx_a, event_idx_b, data, creat_video=False):
                               labels_A, labels_B, "Finetuned Embedding Plot", creat_video)
 
 
-def plot_event(embedings, labels, title, creat_video=False):
+def plot_event(embedings, labels, clusters, title, creat_video=False):
+
+    cluster_colors = ["b", "r", "g", "m", "c", "y", "b"]
 
     pca = PCA(n_components=3)
     embedings_SS = StandardScaler().fit_transform(embedings)
@@ -253,8 +258,7 @@ def plot_event(embedings, labels, title, creat_video=False):
     fig = pyplot.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection='3d')
     for i in range(len(labels)):  # plot each point + it's index as text above
-        ax.scatter(embedings_SS_dim_reduced[i, 0], embedings_SS_dim_reduced[i,
-                                                                            1], embedings_SS_dim_reduced[i, 2], color='b')
+        ax.scatter(embedings_SS_dim_reduced[i, 0], embedings_SS_dim_reduced[i, 1], embedings_SS_dim_reduced[i, 2], color=cluster_colors[clusters[i]])
         ax.text(embedings_SS_dim_reduced[i, 0], embedings_SS_dim_reduced[i, 1], embedings_SS_dim_reduced[i, 2],
                 '%s' % (str(i) + ", " + str(labels[i])), size=10, zorder=1, color='k')
 
@@ -304,23 +308,27 @@ def inspect_event(event_id, data, creat_video=False):
     # Clustering algorithm here.
 
     # Determine the optimal number of clusters based on BIC
-    n_components = np.arange(1, 10)
-    models = [GaussianMixture(n, covariance_type='full', random_state=0).fit(
-        CLSs) for n in n_components]
-    bic = [model.bic(CLSs) for model in models]
+    n_components = np.arange(1, 8)
+    models = [GaussianMixture(n, covariance_type='full', random_state=0, n_init=10).fit(CLSs) for n in n_components]
+    bic = [model.bic(np.array(CLSs)) for model in models]
     n_clusters = n_components[np.argmin(bic)]
 
+    print(f"all bic: {bic}")
+    print(f"ideal number of clusters: {n_clusters}")
+
+    n_clusters = 4
+
     # Gaussian Mixture Clustering with optimal number of clusters
-    gmm = GaussianMixture(n_components=n_clusters, random_state=0)
+    gmm = GaussianMixture(n_components=n_clusters, random_state=0, n_init=25)
 
     gmm.fit(CLSs)
-    CLSs_cluster_labels = gmm.predict(CLSs)
+    CLSs_cluster_labels = gmm.predict(np.array(CLSs))
 
     gmm.fit(avg_embs)
-    avg_embs_cluster_labels = gmm.predict(avg_embs)
+    avg_embs_cluster_labels = gmm.predict(np.array(avg_embs))
 
     gmm.fit(finetuned)
-    finetuned_cluster_labels = gmm.predict(finetuned)
+    finetuned_cluster_labels = gmm.predict(np.array(finetuned))
 
     # Store clusters
     CLSs_clusters = defaultdict(list)
@@ -351,9 +359,14 @@ def inspect_event(event_id, data, creat_video=False):
         summary = ""
         for idx, (article, _) in enumerate(cluster_data):
             summarized_text = summarize_text(article['text'], summarizer_model)
+
+            if "—" in summarized_text:
+                summarized_text = summarized_text.split("—")[1]
+
+            summarized_text = summarized_text.replace("\n", " ")
+
             if idx > 0:
-                summary += transition_phrases[idx %
-                                              len(transition_phrases)] + summarized_text + ". "
+                summary += transition_phrases[idx % len(transition_phrases)] + summarized_text + ". "
             else:
                 summary += summarized_text + ". "
         print(f"Summarized text: {summary}")
@@ -380,10 +393,10 @@ def inspect_event(event_id, data, creat_video=False):
         labels.append(website_dict[temp_website])
 
     plot_event(
-        CLSs, labels, f"CLS Embedding event {event_id} Plot", creat_video=creat_video)
-    plot_event(avg_embs, labels,
+        CLSs, labels, CLSs_cluster_labels, f"CLS Embedding event {event_id} Plot", creat_video=creat_video)
+    plot_event(avg_embs, labels, avg_embs_cluster_labels,
                f"AVG Embedding event {event_id} Plot", creat_video=creat_video)
-    plot_event(finetuned, labels,
+    plot_event(finetuned, labels, finetuned_cluster_labels,
                f"Finetuned Embedding event {event_id} Plot", creat_video=creat_video)
 
 

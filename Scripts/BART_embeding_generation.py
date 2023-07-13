@@ -23,7 +23,7 @@ def generate_embedings():
     # a dictionary
     data = json.load(f)
 
-    data = data[0:5000] # we will only look at some of the data
+    data = data[5000:5500] # we will only look at some of the data
 
     # c = val_data[404]
     # summary = c['summary'] # human-written summary

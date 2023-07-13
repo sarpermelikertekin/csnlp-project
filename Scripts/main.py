@@ -24,17 +24,10 @@ print(device)
 
 
 
-
-
-
-
-
-
-
-
 def main():
+    root_path = r"C:\Users\batua\PycharmProjects\csnlp-project"
     # Opening JSON file
-    f = open('mini_data_500_with_embedings+.json')
+    f = open(root_path + r"\Data\mini_data_500_with_embedings+.json")
 
     # returns JSON object as
     # a dictionary
@@ -42,7 +35,7 @@ def main():
 
     # compare_events(0, 16, data, creat_video=True)
 
-    inspect_event(16, data, creat_video=True)
+    inspect_event(2, data, creat_video=False)
 
     # inspect_data(data)
 
