@@ -403,7 +403,7 @@ def inspect_event(event_id, data, summarize=False, creat_video=False):
         summarizer_model = Summarizer()
         # summarizer_model = SBertSummarizer('paraphrase-MiniLM-L6-v2')
 
-        num_sentences = 1
+        num_sentences = 3
 
         transition_phrases = ["Moreover, ", "Furthermore, ",
                               "In addition, ", "Similarly, ", "Also, "]
