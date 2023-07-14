@@ -7,6 +7,7 @@ This project was made for the ETH Zürich Computational Semantics for Natural La
 The news industry has been revolutionized with the digitization of media, and the Internet becoming a widely used tool. Many news articles are generated at any moment and cause a data mess. In our project, we implemented a tool that automatically clusters news articles according to the event they relate to and their perspective on that specific event. We used BART, which is finetuned for news summarization, to generate embedding vectors for articles. We then finetuned the BART model with an auxiliary binary classification task, where our model learns whether a doublet of articles covers the same event. Then, we fed these finetuned embeddings into a Gaussian Mixture Model to cluster the articles. Ultimately, we implemented a multi-text summarization method to utilize a more generic summary of the clusters. We used clustering with BART embeddings as our baseline and compared our finetuned embeddings with them. The clustering results of finetuned embeddings yielded a much better clustering performance at clustering events based on the article they relate to compared to directly using BART embeddings.
 
 * Under Plot_animations you can find example scatter plot 3D animations for different embedding types.
+* Under Additional_Results you can find extra results that are not shown in the report due to page limit.
 
 * To reproduce the results:
 1) Download the repository.
