@@ -15,15 +15,17 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 
 
-def generate_embedings():
+def generate_embedings(data_start, data_end, save_name):
+    root_path = r"C:\Users\batua\PycharmProjects\csnlp-project"
+
     # Opening JSON file
-    f = open('data.json')
+    f = open(root_path + r'\Data\data.json')
 
     # returns JSON object as
     # a dictionary
     data = json.load(f)
 
-    data = data[5000:5500] # we will only look at some of the data
+    data = data[data_start:data_end] # we will only look at some of the data
 
     # c = val_data[404]
     # summary = c['summary'] # human-written summary
@@ -78,7 +80,8 @@ def generate_embedings():
 
 
     jsonString = json.dumps(data)
-    jsonFile = open("data_5000_with_BART_embedings.json", "w")
+    path = root_path + "\\Data\\" + save_name
+    jsonFile = open(path, "w")
     jsonFile.write(jsonString)
     jsonFile.close()
 

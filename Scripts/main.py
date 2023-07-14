@@ -16,6 +16,8 @@ from mpl_toolkits.mplot3d import Axes3D
 from IPython.display import HTML
 from matplotlib import animation
 from result_ploting import *
+from BART_embeding_generation import *
+from BART_finetuned_embeding_generation import *
 
 pyplot.rcParams['animation.ffmpeg_path'] = "C:\\FFmpeg\\bin\\ffmpeg.exe"
 
@@ -27,17 +29,23 @@ print(device)
 def main():
     root_path = r"C:\Users\batua\PycharmProjects\csnlp-project"
     # Opening JSON file
-    f = open(root_path + r"\Data\mini_data_500_with_embedings+.json")
+
+
+    f = open(root_path + r"\Data\test_500_with_embedings+.json")
 
     # returns JSON object as
     # a dictionary
     data = json.load(f)
 
+    # generate_embedings(5000, 5500, "test_500_with_embedings.json")
+
+    # generate_embedings("test_500_with_embedings.json", "test_500_with_embedings+.json")
+
     # compare_events(0, 16, data, creat_video=True)
 
     # inspect_event(16, data, summarize=True, creat_video=False)
 
-    compare_multiple_events(range(0, 19, 2), data, creat_video=False)
+    compare_multiple_events(range(10), data, creat_video=False)
 
     # inspect_data(data)
 

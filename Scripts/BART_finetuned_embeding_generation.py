@@ -91,9 +91,12 @@ class Net(nn.Module):
         return res
 
 
-def generate_embedings():
+def generate_embedings(input_data_name, save_name):
     # Opening JSON file
-    f = open('mini_data_500_with_embedings.json')
+    root_path = r"C:\Users\batua\PycharmProjects\csnlp-project"
+
+
+    f = open(root_path + "\\Data\\" + input_data_name)
 
     # returns JSON object as
     # a dictionary
@@ -107,7 +110,7 @@ def generate_embedings():
     # article_keys = articles[0].keys()
 
 
-    encoder = torch.load(f"./encoder.pt")
+    encoder = torch.load(root_path + "\\Scripts\\" + f"./encoder.pt")
     # encoder = encoder.to(device)
 
     encoder.cpu()
@@ -128,7 +131,7 @@ def generate_embedings():
 
 
     jsonString = json.dumps(data)
-    jsonFile = open("mini_data_500_with_embedings+.json", "w")
+    jsonFile = open(root_path + "\\Data\\" + save_name, "w")
     jsonFile.write(jsonString)
     jsonFile.close()
 
