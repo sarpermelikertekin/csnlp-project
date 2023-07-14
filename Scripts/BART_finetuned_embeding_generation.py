@@ -91,7 +91,7 @@ class Net(nn.Module):
         return res
 
 
-def generate_embedings(input_data_name, save_name):
+def add_embedings(input_data_name, save_name, encoder_name, new_embeding_name):
     # Opening JSON file
     root_path = r"C:\Users\batua\PycharmProjects\csnlp-project"
 
@@ -110,7 +110,7 @@ def generate_embedings(input_data_name, save_name):
     # article_keys = articles[0].keys()
 
 
-    encoder = torch.load(root_path + "\\Scripts\\" + f"./encoder.pt")
+    encoder = torch.load(root_path + "\\Scripts\\" + encoder_name)
     # encoder = encoder.to(device)
 
     encoder.cpu()
@@ -125,7 +125,7 @@ def generate_embedings(input_data_name, save_name):
 
             encodings = encoder(torch.Tensor(CLS).type(torch.float)).detach().numpy().tolist()
 
-            article["finetuned"] = encodings
+            article[new_embeding_name] = encodings
 
 
 
@@ -139,5 +139,5 @@ def generate_embedings(input_data_name, save_name):
 
 if __name__ == '__main__':
 
-    generate_embedings()
+    add_embedings()
 

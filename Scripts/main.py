@@ -31,15 +31,16 @@ def main():
     # Opening JSON file
 
 
-    f = open(root_path + r"\Data\test_500_with_embedings+.json")
-
-    # returns JSON object as
-    # a dictionary
-    data = json.load(f)
 
     # generate_embedings(5000, 5500, "test_500_with_embedings.json")
 
-    # generate_embedings("test_500_with_embedings.json", "test_500_with_embedings+.json")
+    add_embedings(input_data_name="test_500_with_embedings.json",
+                       save_name="test_500_with_embedings+.json",
+                       encoder_name=f"./encoder.pt",
+                       new_embeding_name="finetuned")
+
+    f = open(root_path + r"\Data\test_500_with_embedings+.json")
+    data = json.load(f)
 
     # compare_events(0, 16, data, creat_video=True)
 
