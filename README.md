@@ -22,3 +22,4 @@ The news industry has been revolutionized with the digitization of media, and th
 4) finetunning_data_generator: responsible for finetuning the BART model for article clustering than saving the encoder that does the finetuning. The encoder will be later used by other scripts for generating finetuned embeddings.
 5) BART_finetuned_embeding_generation: responsible for using the saved encoders for generating finetuned embeddings for data with CLS token embeddings then appending the new embeddings to the data and saving it.
 6) result_ploting: all the functions used to analyze the data and create the plots and summaries. 
+7) untitled0.ipynb: the jupyter notebook where auxiliary training is performed
