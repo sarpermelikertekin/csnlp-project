@@ -25,6 +25,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from IPython.display import HTML
 from matplotlib import animation
 pyplot.rcParams['animation.ffmpeg_path'] = "C:\\FFmpeg\\bin\\ffmpeg.exe"
+root_path = r"C:\Users\batua\PycharmProjects\csnlp-project"
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
@@ -143,7 +144,7 @@ def plot_comparison_of_events(embedings_A, embedings_B, labels_A, labels_B, titl
     if creat_video:
         anim = animation.FuncAnimation(fig, animate, frames=720, interval=50)
         title = title.replace(" ", "_")
-        anim.save(f"{title}_{labels_A[0]}_{labels_B[0]}_animation.mp4")
+        anim.save(root_path + "\\Plot_animations\\" + f"{title}_{labels_A[0]}_{labels_B[0]}_animation.mp4")
 
 
 def compare_events(event_idx_a, event_idx_b, data, creat_video=False):
@@ -293,7 +294,7 @@ def plot_event(embedings, labels, clusters, title, creat_video=False):
     if creat_video:
         anim = animation.FuncAnimation(fig, animate, frames=720, interval=50)
         title = title.replace(" ", "_")
-        anim.save(f"{title}_animation.mp4")
+        anim.save(root_path + "\\Plot_animations\\" + f"{title}_animation.mp4")
 
 
 def summarize_text(text_content, summarizer_model, num_sentences=3):
@@ -320,7 +321,7 @@ def inspect_event(event_id, data, summarize=False, creat_video=False):
         finetuned.append(np.array(temp_finetuned))
 
     # Clustering algorithm here.
-    explained_var = 0.95
+    explained_var = 0.999
     def reduce_dim_with_PCA(data, explained_var):
 
         pca = PCA()
@@ -402,7 +403,7 @@ def inspect_event(event_id, data, summarize=False, creat_video=False):
         summarizer_model = Summarizer()
         # summarizer_model = SBertSummarizer('paraphrase-MiniLM-L6-v2')
 
-        num_sentences = 3
+        num_sentences = 1
 
         transition_phrases = ["Moreover, ", "Furthermore, ",
                               "In addition, ", "Similarly, ", "Also, "]
@@ -425,7 +426,7 @@ def inspect_event(event_id, data, summarize=False, creat_video=False):
                     summary += transition_phrases[idx % len(transition_phrases)] + summarized_text + ". "
                 else:
                     summary += summarized_text + ". "
-            print(f"Summarized text: {summary}")
+            # print(f"Summarized text: {summary}")
 
             # Generate a final summary for the whole cluster
             final_summary = summarize_text(summary, summarizer_model, num_sentences=num_sentences)
@@ -450,7 +451,7 @@ def inspect_event(event_id, data, summarize=False, creat_video=False):
                     summary += transition_phrases[idx % len(transition_phrases)] + summarized_text + ". "
                 else:
                     summary += summarized_text + ". "
-            print(f"Summarized text: {summary}")
+            # print(f"Summarized text: {summary}")
 
             # Generate a final summary for the whole cluster
             final_summary = summarize_text(summary, summarizer_model, num_sentences=num_sentences)
@@ -475,7 +476,7 @@ def inspect_event(event_id, data, summarize=False, creat_video=False):
                     summary += transition_phrases[idx % len(transition_phrases)] + summarized_text + ". "
                 else:
                     summary += summarized_text + ". "
-            print(f"Summarized text: {summary}")
+            # print(f"Summarized text: {summary}")
 
             # Generate a final summary for the whole cluster
             final_summary = summarize_text(summary, summarizer_model, num_sentences=num_sentences)
@@ -605,6 +606,131 @@ def compare_multiple_events(event_idxs, data, creat_video=False):
     print(f"Homogenity score of finetuned embedings: {homogeneity_score_finetuned}")
 
 
+
+def compare_multiple_events_plus(event_idxs, data, creat_video=False):
+
+    event_articals_list = [(data[idx]["articles"], idx) for idx in event_idxs]
+
+    for event_idx in event_idxs:
+        print(f"event index {event_idx}, artical count: {len(data[event_idx]['articles'])}")
+
+    print("")
+
+    for event_idx in event_idxs:
+        print(f"event index {event_idx}, summary: {data[event_idx]['summary']}")
+
+    CLSs = []
+    avg_embs = []
+    finetuned_0 = []
+    finetuned_1 = []
+    finetuned_2 = []
+    finetuned_3 = []
+    true_cluster_lables = []
+
+    for (event_articals, event_idx) in event_articals_list:
+        for article in event_articals:
+            temp_CLS = article["CLS"]
+            temp_avg_emb = article["avg_embedings"]
+            temp_finetuned_0 = article["finetuned_0"]
+            temp_finetuned_1 = article["finetuned_1"]
+            temp_finetuned_2 = article["finetuned_2"]
+            temp_finetuned_3 = article["finetuned_3"]
+
+            CLSs.append(np.array(temp_CLS))
+            avg_embs.append(np.array(temp_avg_emb))
+            finetuned_0.append(np.array(temp_finetuned_0))
+            finetuned_1.append(np.array(temp_finetuned_1))
+            finetuned_2.append(np.array(temp_finetuned_2))
+            finetuned_3.append(np.array(temp_finetuned_3))
+
+            true_cluster_lables.append(event_idx)
+
+    # Clustering algorithm here.
+    explained_var = 0.95
+
+    def reduce_dim_with_PCA(data, explained_var):
+
+        pca = PCA()
+        data_SS = StandardScaler().fit_transform(np.array(data))
+        pca.fit(data_SS)
+
+        for idx, i in enumerate(np.cumsum(pca.explained_variance_ratio_)):
+            if i > explained_var:
+                reduced_dim = idx + 1
+                break
+
+        pca = PCA(n_components=reduced_dim)
+
+        data_SS_dim_reduced = pca.fit_transform(data_SS)
+        pca.fit(data_SS)
+
+        return data_SS_dim_reduced
+
+    def cluster_GMM(embedings_list, explained_var):
+        embedings_SS_dim_reduced = reduce_dim_with_PCA(embedings_list, explained_var)
+
+        # Determine the optimal number of clusters based on BIC
+        n_components = np.arange(1, 75)
+        models = [GaussianMixture(n, covariance_type='full', random_state=42, n_init=10).fit(embedings_SS_dim_reduced)
+                  for n in n_components]
+        bic = [model.bic(np.array(embedings_SS_dim_reduced)) for model in models]
+        n_clusters = n_components[np.argmin(bic)]
+
+        print(f"all bic: {bic}")
+        print(f"ideal number of clusters: {n_clusters}")
+
+        # Gaussian Mixture Clustering with optimal number of clusters
+        gmm = GaussianMixture(n_components=n_clusters, random_state=0, n_init=25)
+
+        gmm.fit(embedings_SS_dim_reduced)
+        return gmm.predict(np.array(embedings_SS_dim_reduced))
+
+    # *****************
+    #       CLS
+    # *****************
+    CLSs_cluster_labels = cluster_GMM(CLSs, explained_var)
+    homogeneity_score_CLS = homogeneity_score(true_cluster_lables, CLSs_cluster_labels)
+
+
+    # *****************
+    #   avg embedings
+    # *****************
+    avg_embs_cluster_labels = cluster_GMM(avg_embs, explained_var)
+    homogeneity_score_avg_emb = homogeneity_score(true_cluster_lables, avg_embs_cluster_labels)
+
+
+    # *****************
+    #     finetune_0
+    # *****************
+    finetuned_cluster_labels_0 = cluster_GMM(finetuned_0, explained_var)
+    homogeneity_score_finetuned_0 = homogeneity_score(true_cluster_lables, finetuned_cluster_labels_0)
+
+    # *****************
+    #     finetune_1
+    # *****************
+    finetuned_cluster_labels_1 = cluster_GMM(finetuned_1, explained_var)
+    homogeneity_score_finetuned_1 = homogeneity_score(true_cluster_lables, finetuned_cluster_labels_1)
+
+    # *****************
+    #     finetune_2
+    # *****************
+    finetuned_cluster_labels_2 = cluster_GMM(finetuned_2, explained_var)
+    homogeneity_score_finetuned_2 = homogeneity_score(true_cluster_lables, finetuned_cluster_labels_2)
+
+    # *****************
+    #     finetune_3
+    # *****************
+    finetuned_cluster_labels_3 = cluster_GMM(finetuned_3, explained_var)
+    homogeneity_score_finetuned_3 = homogeneity_score(true_cluster_lables, finetuned_cluster_labels_3)
+
+
+
+    print(f"Homogenity score of CLS embedings: {homogeneity_score_CLS}")
+    print(f"Homogenity score of average embedings: {homogeneity_score_avg_emb}")
+    print(f"Homogenity score of finetuned_0 embedings: {homogeneity_score_finetuned_0}")
+    print(f"Homogenity score of finetuned_1 embedings: {homogeneity_score_finetuned_1}")
+    print(f"Homogenity score of finetuned_2 embedings: {homogeneity_score_finetuned_2}")
+    print(f"Homogenity score of finetuned_3 embedings: {homogeneity_score_finetuned_3}")
 
 
 def inspect_data(data):

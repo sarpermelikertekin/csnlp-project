@@ -85,7 +85,7 @@ def generate_embedings(data_start, data_end, save_name):
     jsonFile.write(jsonString)
     jsonFile.close()
 
-    print("debug")
+    print("\n\ndata with CLS embedding and average embedding is created\n\n")
 
 if __name__ == '__main__':
 

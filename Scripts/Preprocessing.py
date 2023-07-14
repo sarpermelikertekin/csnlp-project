@@ -10,9 +10,12 @@ def read_jsonl_gz(path):
             yield json.loads(l)
 
 def generate_data():
-    val_data = list(read_jsonl_gz('val.jsonl.gz'))
-    test_data = list(read_jsonl_gz('test.jsonl.gz'))
-    train_data = list(read_jsonl_gz('train.jsonl.gz'))
+    root_path = r"C:\Users\batua\PycharmProjects\csnlp-project"
+
+
+    val_data = list(read_jsonl_gz(root_path + "\\Data\\" + 'val.jsonl.gz'))
+    test_data = list(read_jsonl_gz(root_path + "\\Data\\" + 'test.jsonl.gz'))
+    train_data = list(read_jsonl_gz(root_path + "\\Data\\" + 'train.jsonl.gz'))
 
     data = train_data + test_data + val_data
 
@@ -125,10 +128,10 @@ def generate_data():
             print(f"{i[0]}: {i[1]:5d}")
 
     jsonString = json.dumps(data)
-    jsonFile = open("data.json", "w")
+    jsonFile = open(root_path + "\\Data\\" + "data.json", "w")
     jsonFile.write(jsonString)
     jsonFile.close()
 
-    print("debug")
+    print("\n\npre-procesing done and data generated.\n\n")
 
 

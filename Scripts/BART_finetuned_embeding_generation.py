@@ -110,7 +110,7 @@ def add_embedings(input_data_name, save_name, encoder_name, new_embeding_name):
     # article_keys = articles[0].keys()
 
 
-    encoder = torch.load(root_path + "\\Scripts\\" + encoder_name)
+    encoder = torch.load(root_path + "\\Models\\" + encoder_name)
     # encoder = encoder.to(device)
 
     encoder.cpu()
@@ -136,6 +136,68 @@ def add_embedings(input_data_name, save_name, encoder_name, new_embeding_name):
     jsonFile.close()
 
     print("debug")
+
+
+def add_embedings_plus(input_data_name, save_name, encoder_name, new_embeding_name):
+    # Opening JSON file
+    root_path = r"C:\Users\batua\PycharmProjects\csnlp-project"
+    f = open(root_path + "\\Data\\" + input_data_name)
+
+    # returns JSON object as
+    # a dictionary
+    data = json.load(f)
+
+
+
+    # c = val_data[404]
+    # summary = c['summary'] # human-written summary
+    # articles = c['articles'] # cluster of articles
+    # article_keys = articles[0].keys()
+
+
+    encoder_0 = torch.load(root_path + "\\Models\\" + encoder_name[0], map_location=device)
+    encoder_1 = torch.load(root_path + "\\Models\\" + encoder_name[1], map_location=device)
+    encoder_2 = torch.load(root_path + "\\Models\\" + encoder_name[2], map_location=device)
+    encoder_3 = torch.load(root_path + "\\Models\\" + encoder_name[3], map_location=device)
+    # encoder = encoder.to(device)
+
+    encoder_0.cpu()
+    encoder_1.cpu()
+    encoder_2.cpu()
+    encoder_3.cpu()
+
+    # adding embedings
+    for (i, event) in enumerate(data):
+        print(f"event number {i}")
+        articles_list = event["articles"]
+        for article in articles_list:
+
+            CLS = article["CLS"]
+
+            encodings = encoder_0(torch.Tensor(CLS).type(torch.float)).detach().numpy().tolist()
+
+            article[new_embeding_name[0]] = encodings
+
+            encodings = encoder_1(torch.Tensor(CLS).type(torch.float)).detach().numpy().tolist()
+
+            article[new_embeding_name[1]] = encodings
+
+            encodings = encoder_2(torch.Tensor(CLS).type(torch.float)).detach().numpy().tolist()
+
+            article[new_embeding_name[2]] = encodings
+
+            encodings = encoder_3(torch.Tensor(CLS).type(torch.float)).detach().numpy().tolist()
+
+            article[new_embeding_name[3]] = encodings
+
+
+
+    jsonString = json.dumps(data)
+    jsonFile = open(root_path + "\\Data\\" + save_name, "w")
+    jsonFile.write(jsonString)
+    jsonFile.close()
+
+    print("\n\nfinetuned embeddings are added to the data\n\n")
 
 if __name__ == '__main__':
 

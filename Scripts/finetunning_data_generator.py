@@ -466,6 +466,27 @@ def finetune_model(encoder, net, train_loader, val_loader):
 
     return train_losses, val_losses
 
+def generate_encoder(training_data_name):
+    root_path = r"C:\Users\batua\PycharmProjects\csnlp-project"
+
+    f = open(root_path + "\\Data\\" + training_data_name)
+    events = json.load(f)
+    events_train = events[:int(len(events)*0.9)]
+    events_val = events[int(len(events)*0.9):]
+
+
+    finetunning_data_train_X_0, finetunning_data_train_X_1, finetunning_data_train_y, debuging_lookup_tr = generate_finetunning_data(events_train, number_of_samples=5, emb_type="CLS")
+    finetunning_data_val_X_0, finetunning_data_val_X_1, finetunning_data_val_y, debuging_lookup_val = generate_finetunning_data(events_val, number_of_samples=5, emb_type="CLS")
+
+    encoder = Encoder()
+    net = Net(encoder)
+
+
+    train_loader = create_loader_from_list(finetunning_data_train_X_0, finetunning_data_train_X_1, finetunning_data_train_y, batch_size=256, shuffle=True)
+    val_loader = create_loader_from_list(finetunning_data_val_X_0, finetunning_data_val_X_1, finetunning_data_val_y, batch_size=256, shuffle=False)
+
+    train_losses, val_losses = finetune_model(encoder, net, train_loader, val_loader)
+
 if __name__ == '__main__':
 
     f = open('mini_data_500_with_embedings.json')

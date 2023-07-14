@@ -18,6 +18,9 @@ from matplotlib import animation
 from result_ploting import *
 from BART_embeding_generation import *
 from BART_finetuned_embeding_generation import *
+from finetunning_data_generator import *
+from Preprocessing import *
+
 
 pyplot.rcParams['animation.ffmpeg_path'] = "C:\\FFmpeg\\bin\\ffmpeg.exe"
 
@@ -30,21 +33,26 @@ def main():
     root_path = r"C:\Users\batua\PycharmProjects\csnlp-project"
     # Opening JSON file
 
+    generate_data()
 
+    generate_embedings(5000, 5500, "test_500_with_embedings.json")
 
-    # generate_embedings(5000, 5500, "test_500_with_embedings.json")
+    # These steps take too long, so you can use our already trained encoders
+    # generate_embedings(0, 5000, "train_5000_with_embedings.json")
+    # generate_encoder("train_5000_with_embedings.json")
 
     add_embedings(input_data_name="test_500_with_embedings.json",
                        save_name="test_500_with_embedings+.json",
-                       encoder_name=f"./encoder.pt",
+                       encoder_name=f"encoder(1000-2000-1000).pt",
                        new_embeding_name="finetuned")
+
 
     f = open(root_path + r"\Data\test_500_with_embedings+.json")
     data = json.load(f)
 
-    # compare_events(0, 16, data, creat_video=True)
+    compare_events(5, 6, data, creat_video=False)
 
-    # inspect_event(16, data, summarize=True, creat_video=False)
+    inspect_event(48, data, summarize=True, creat_video=False)
 
     compare_multiple_events(range(10), data, creat_video=False)
 
