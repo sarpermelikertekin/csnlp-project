@@ -14,6 +14,8 @@ from summarizer.sbert import SBertSummarizer
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.mixture import GaussianMixture
+from sklearn.metrics.cluster import homogeneity_score
+
 
 from collections import defaultdict
 
@@ -302,8 +304,7 @@ def inspect_event(event_id, data, summarize=False, creat_video=False):
 
     event = data[event_id]
     articles_list = event["articles"]
-    print(
-        f"envent number {event_id}, number of articles: {len(articles_list)}")
+    print(f"envent number {event_id}, number of articles: {len(articles_list)}")
     print(f"Summary: {event['summary']}")
 
     CLSs = []
@@ -319,7 +320,7 @@ def inspect_event(event_id, data, summarize=False, creat_video=False):
         finetuned.append(np.array(temp_finetuned))
 
     # Clustering algorithm here.
-    reduced_dim = 0.95
+    explained_var = 0.95
     def reduce_dim_with_PCA(data, explained_var):
 
         pca = PCA()
@@ -338,61 +339,41 @@ def inspect_event(event_id, data, summarize=False, creat_video=False):
 
         return data_SS_dim_reduced
 
-    embedings_SS_dim_reduced = reduce_dim_with_PCA(CLSs, reduced_dim)
+    def cluster_GMM(embedings_list, explained_var):
+        embedings_SS_dim_reduced = reduce_dim_with_PCA(embedings_list, explained_var)
 
-    # Determine the optimal number of clusters based on BIC
-    n_components = np.arange(1, 9)
-    models = [GaussianMixture(n, covariance_type='full', random_state=42, n_init=10).fit(embedings_SS_dim_reduced) for n in n_components]
-    bic = [model.bic(np.array(embedings_SS_dim_reduced)) for model in models]
-    n_clusters = n_components[np.argmin(bic)]
+        # Determine the optimal number of clusters based on BIC
+        n_components = np.arange(1, 9)
+        models = [GaussianMixture(n, covariance_type='full', random_state=42, n_init=10).fit(embedings_SS_dim_reduced)
+                  for n in n_components]
+        bic = [model.bic(np.array(embedings_SS_dim_reduced)) for model in models]
+        n_clusters = n_components[np.argmin(bic)]
 
-    print(f"all bic: {bic}")
-    print(f"ideal number of clusters: {n_clusters}")
+        print(f"all bic: {bic}")
+        print(f"ideal number of clusters: {n_clusters}")
 
-    # Gaussian Mixture Clustering with optimal number of clusters
-    gmm = GaussianMixture(n_components=n_clusters, random_state=0, n_init=25)
+        # Gaussian Mixture Clustering with optimal number of clusters
+        gmm = GaussianMixture(n_components=n_clusters, random_state=0, n_init=25)
 
-    gmm.fit(embedings_SS_dim_reduced)
-    CLSs_cluster_labels = gmm.predict(np.array(embedings_SS_dim_reduced))
+        gmm.fit(embedings_SS_dim_reduced)
+        return gmm.predict(np.array(embedings_SS_dim_reduced))
 
-
-
-    embedings_SS_dim_reduced = reduce_dim_with_PCA(avg_embs, reduced_dim)
-
-    # Determine the optimal number of clusters based on BIC
-    n_components = np.arange(1, 9)
-    models = [GaussianMixture(n, covariance_type='full', random_state=42, n_init=10).fit(embedings_SS_dim_reduced) for n in n_components]
-    bic = [model.bic(np.array(embedings_SS_dim_reduced)) for model in models]
-    n_clusters = n_components[np.argmin(bic)]
-
-    print(f"all bic: {bic}")
-    print(f"ideal number of clusters: {n_clusters}")
-
-    # Gaussian Mixture Clustering with optimal number of clusters
-    gmm = GaussianMixture(n_components=n_clusters, random_state=0, n_init=25)
-
-    gmm.fit(embedings_SS_dim_reduced)
-    avg_embs_cluster_labels = gmm.predict(np.array(embedings_SS_dim_reduced))
+    # *****************
+    #       CLS
+    # *****************
+    CLSs_cluster_labels = cluster_GMM(CLSs, explained_var)
 
 
+    # *****************
+    #   avg embedings
+    # *****************
+    avg_embs_cluster_labels = cluster_GMM(avg_embs, explained_var)
 
 
-    embedings_SS_dim_reduced = reduce_dim_with_PCA(finetuned, reduced_dim)
-
-    # Determine the optimal number of clusters based on BIC
-    n_components = np.arange(1, 9)
-    models = [GaussianMixture(n, covariance_type='full', random_state=42, n_init=10).fit(embedings_SS_dim_reduced) for n in n_components]
-    bic = [model.bic(np.array(embedings_SS_dim_reduced)) for model in models]
-    n_clusters = n_components[np.argmin(bic)]
-
-    print(f"all bic: {bic}")
-    print(f"ideal number of clusters: {n_clusters}")
-
-    # Gaussian Mixture Clustering with optimal number of clusters
-    gmm = GaussianMixture(n_components=n_clusters, random_state=0, n_init=25)
-
-    gmm.fit(embedings_SS_dim_reduced)
-    finetuned_cluster_labels = gmm.predict(np.array(embedings_SS_dim_reduced))
+    # *****************
+    #     finetune
+    # *****************
+    finetuned_cluster_labels = cluster_GMM(finetuned, explained_var)
 
 
 
@@ -527,6 +508,103 @@ def inspect_event(event_id, data, summarize=False, creat_video=False):
                f"AVG Embedding event {event_id} Plot", creat_video=creat_video)
     plot_event(finetuned, labels, finetuned_cluster_labels,
                f"Finetuned Embedding event {event_id} Plot", creat_video=creat_video)
+
+
+
+def compare_multiple_events(event_idxs, data, creat_video=False):
+
+    event_articals_list = [(data[idx]["articles"], idx) for idx in event_idxs]
+
+    for event_idx in event_idxs:
+        print(f"event index {event_idx}, artical count: {len(data[event_idx]['articles'])}")
+
+    print("")
+
+    for event_idx in event_idxs:
+        print(f"event index {event_idx}, summary: {data[event_idx]['summary']}")
+
+    CLSs = []
+    avg_embs = []
+    finetuned = []
+    true_cluster_lables = []
+
+    for (event_articals, event_idx) in event_articals_list:
+        for article in event_articals:
+            temp_CLS = article["CLS"]
+            temp_avg_emb = article["avg_embedings"]
+            temp_finetuned = article["finetuned"]
+
+            CLSs.append(np.array(temp_CLS))
+            avg_embs.append(np.array(temp_avg_emb))
+            finetuned.append(np.array(temp_finetuned))
+            true_cluster_lables.append(event_idx)
+
+    # Clustering algorithm here.
+    explained_var = 0.95
+
+    def reduce_dim_with_PCA(data, explained_var):
+
+        pca = PCA()
+        data_SS = StandardScaler().fit_transform(np.array(data))
+        pca.fit(data_SS)
+
+        for idx, i in enumerate(np.cumsum(pca.explained_variance_ratio_)):
+            if i > explained_var:
+                reduced_dim = idx + 1
+                break
+
+        pca = PCA(n_components=reduced_dim)
+
+        data_SS_dim_reduced = pca.fit_transform(data_SS)
+        pca.fit(data_SS)
+
+        return data_SS_dim_reduced
+
+    def cluster_GMM(embedings_list, explained_var):
+        embedings_SS_dim_reduced = reduce_dim_with_PCA(embedings_list, explained_var)
+
+        # Determine the optimal number of clusters based on BIC
+        n_components = np.arange(1, 20)
+        models = [GaussianMixture(n, covariance_type='full', random_state=42, n_init=10).fit(embedings_SS_dim_reduced)
+                  for n in n_components]
+        bic = [model.bic(np.array(embedings_SS_dim_reduced)) for model in models]
+        n_clusters = n_components[np.argmin(bic)]
+
+        print(f"all bic: {bic}")
+        print(f"ideal number of clusters: {n_clusters}")
+
+        # Gaussian Mixture Clustering with optimal number of clusters
+        gmm = GaussianMixture(n_components=n_clusters, random_state=0, n_init=25)
+
+        gmm.fit(embedings_SS_dim_reduced)
+        return gmm.predict(np.array(embedings_SS_dim_reduced))
+
+    # *****************
+    #       CLS
+    # *****************
+    CLSs_cluster_labels = cluster_GMM(CLSs, explained_var)
+    homogeneity_score_CLS = homogeneity_score(true_cluster_lables, CLSs_cluster_labels)
+
+
+    # *****************
+    #   avg embedings
+    # *****************
+    avg_embs_cluster_labels = cluster_GMM(avg_embs, explained_var)
+    homogeneity_score_avg_emb = homogeneity_score(true_cluster_lables, avg_embs_cluster_labels)
+
+
+    # *****************
+    #     finetune
+    # *****************
+    finetuned_cluster_labels = cluster_GMM(finetuned, explained_var)
+    homogeneity_score_finetuned = homogeneity_score(true_cluster_lables, finetuned_cluster_labels)
+
+
+    print(f"Homogenity score of CLS embedings: {homogeneity_score_CLS}")
+    print(f"Homogenity score of average embedings: {homogeneity_score_avg_emb}")
+    print(f"Homogenity score of finetuned embedings: {homogeneity_score_finetuned}")
+
+
 
 
 def inspect_data(data):
