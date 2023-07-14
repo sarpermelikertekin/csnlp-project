@@ -35,7 +35,7 @@ def main():
 
     # compare_events(0, 16, data, creat_video=True)
 
-    inspect_event(2, data, creat_video=False)
+    inspect_event(16, data, summarize=True, creat_video=False)
 
     # inspect_data(data)
 

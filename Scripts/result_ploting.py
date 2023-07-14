@@ -7,7 +7,9 @@ from datetime import datetime
 import torch
 import transformers
 from transformers import BartTokenizer, BartForConditionalGeneration
+
 from summarizer import Summarizer
+from summarizer.sbert import SBertSummarizer
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
@@ -249,7 +251,14 @@ def compare_events(event_idx_a, event_idx_b, data, creat_video=False):
 
 def plot_event(embedings, labels, clusters, title, creat_video=False):
 
-    cluster_colors = ["b", "r", "g", "m", "c", "y", "b"]
+    cluster_colors = ["b", "r", "g", "m", "c", "b", "y"]
+    legend_labels = [pyplot.Line2D([0], [0], marker='o', color='b', label='Cluster 0', markersize=10),
+                     pyplot.Line2D([0], [0], marker='o', color='r', label='Cluster 1', markersize=10),
+                     pyplot.Line2D([0], [0], marker='o', color='g', label='Cluster 2', markersize=10),
+                     pyplot.Line2D([0], [0], marker='o', color='m', label='Cluster 3', markersize=10),
+                     pyplot.Line2D([0], [0], marker='o', color='c', label='Cluster 4', markersize=10),
+                     pyplot.Line2D([0], [0], marker='o', color='b', label='Cluster 5', markersize=10),
+                     pyplot.Line2D([0], [0], marker='o', color='y', label='Cluster 6', markersize=10)]
 
     pca = PCA(n_components=3)
     embedings_SS = StandardScaler().fit_transform(embedings)
@@ -258,13 +267,17 @@ def plot_event(embedings, labels, clusters, title, creat_video=False):
     fig = pyplot.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection='3d')
     for i in range(len(labels)):  # plot each point + it's index as text above
-        ax.scatter(embedings_SS_dim_reduced[i, 0], embedings_SS_dim_reduced[i, 1], embedings_SS_dim_reduced[i, 2], color=cluster_colors[clusters[i]])
-        ax.text(embedings_SS_dim_reduced[i, 0], embedings_SS_dim_reduced[i, 1], embedings_SS_dim_reduced[i, 2],
-                '%s' % (str(i) + ", " + str(labels[i])), size=10, zorder=1, color='k')
+        ax.scatter(embedings_SS_dim_reduced[i, 0], embedings_SS_dim_reduced[i, 1], embedings_SS_dim_reduced[i, 2],
+                   color=cluster_colors[clusters[i]], s=50)
+        # ax.text(embedings_SS_dim_reduced[i, 0], embedings_SS_dim_reduced[i, 1], embedings_SS_dim_reduced[i, 2],
+        #         '%s' % (str(i) + ", " + str(labels[i])), size=10, zorder=1, color='k')
 
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_zlabel('z')
+
+    num_clusters = max(clusters) + 1
+    ax.legend(handles=legend_labels[:num_clusters], loc='lower left', title='Legend')
 
     ax.text2D(0.05, 0.95, title, transform=ax.transAxes)
 
@@ -281,11 +294,11 @@ def plot_event(embedings, labels, clusters, title, creat_video=False):
         anim.save(f"{title}_animation.mp4")
 
 
-def summarize_text(text_content, summarizer_model):
-    return summarizer_model(text_content, num_sentences=3)
+def summarize_text(text_content, summarizer_model, num_sentences=3):
+    return summarizer_model(text_content, num_sentences=num_sentences)
 
 
-def inspect_event(event_id, data, creat_video=False):
+def inspect_event(event_id, data, summarize=False, creat_video=False):
 
     event = data[event_id]
     articles_list = event["articles"]
@@ -306,29 +319,83 @@ def inspect_event(event_id, data, creat_video=False):
         finetuned.append(np.array(temp_finetuned))
 
     # Clustering algorithm here.
+    reduced_dim = 0.95
+    def reduce_dim_with_PCA(data, explained_var):
+
+        pca = PCA()
+        data_SS = StandardScaler().fit_transform(np.array(data))
+        pca.fit(data_SS)
+
+        for idx, i in enumerate(np.cumsum(pca.explained_variance_ratio_)):
+            if i > explained_var:
+                reduced_dim = idx + 1
+                break
+
+        pca = PCA(n_components=reduced_dim)
+
+        data_SS_dim_reduced = pca.fit_transform(data_SS)
+        pca.fit(data_SS)
+
+        return data_SS_dim_reduced
+
+    embedings_SS_dim_reduced = reduce_dim_with_PCA(CLSs, reduced_dim)
 
     # Determine the optimal number of clusters based on BIC
-    n_components = np.arange(1, 8)
-    models = [GaussianMixture(n, covariance_type='full', random_state=0, n_init=10).fit(CLSs) for n in n_components]
-    bic = [model.bic(np.array(CLSs)) for model in models]
+    n_components = np.arange(1, 9)
+    models = [GaussianMixture(n, covariance_type='full', random_state=42, n_init=10).fit(embedings_SS_dim_reduced) for n in n_components]
+    bic = [model.bic(np.array(embedings_SS_dim_reduced)) for model in models]
     n_clusters = n_components[np.argmin(bic)]
 
     print(f"all bic: {bic}")
     print(f"ideal number of clusters: {n_clusters}")
 
-    n_clusters = 4
+    # Gaussian Mixture Clustering with optimal number of clusters
+    gmm = GaussianMixture(n_components=n_clusters, random_state=0, n_init=25)
+
+    gmm.fit(embedings_SS_dim_reduced)
+    CLSs_cluster_labels = gmm.predict(np.array(embedings_SS_dim_reduced))
+
+
+
+    embedings_SS_dim_reduced = reduce_dim_with_PCA(avg_embs, reduced_dim)
+
+    # Determine the optimal number of clusters based on BIC
+    n_components = np.arange(1, 9)
+    models = [GaussianMixture(n, covariance_type='full', random_state=42, n_init=10).fit(embedings_SS_dim_reduced) for n in n_components]
+    bic = [model.bic(np.array(embedings_SS_dim_reduced)) for model in models]
+    n_clusters = n_components[np.argmin(bic)]
+
+    print(f"all bic: {bic}")
+    print(f"ideal number of clusters: {n_clusters}")
 
     # Gaussian Mixture Clustering with optimal number of clusters
     gmm = GaussianMixture(n_components=n_clusters, random_state=0, n_init=25)
 
-    gmm.fit(CLSs)
-    CLSs_cluster_labels = gmm.predict(np.array(CLSs))
+    gmm.fit(embedings_SS_dim_reduced)
+    avg_embs_cluster_labels = gmm.predict(np.array(embedings_SS_dim_reduced))
 
-    gmm.fit(avg_embs)
-    avg_embs_cluster_labels = gmm.predict(np.array(avg_embs))
 
-    gmm.fit(finetuned)
-    finetuned_cluster_labels = gmm.predict(np.array(finetuned))
+
+
+    embedings_SS_dim_reduced = reduce_dim_with_PCA(finetuned, reduced_dim)
+
+    # Determine the optimal number of clusters based on BIC
+    n_components = np.arange(1, 9)
+    models = [GaussianMixture(n, covariance_type='full', random_state=42, n_init=10).fit(embedings_SS_dim_reduced) for n in n_components]
+    bic = [model.bic(np.array(embedings_SS_dim_reduced)) for model in models]
+    n_clusters = n_components[np.argmin(bic)]
+
+    print(f"all bic: {bic}")
+    print(f"ideal number of clusters: {n_clusters}")
+
+    # Gaussian Mixture Clustering with optimal number of clusters
+    gmm = GaussianMixture(n_components=n_clusters, random_state=0, n_init=25)
+
+    gmm.fit(embedings_SS_dim_reduced)
+    finetuned_cluster_labels = gmm.predict(np.array(embedings_SS_dim_reduced))
+
+
+
 
     # Store clusters
     CLSs_clusters = defaultdict(list)
@@ -348,32 +415,94 @@ def inspect_event(event_id, data, creat_video=False):
         finetuned_clusters[label].append((articles_list[i], finetuned[i]))
 
     # Summarization
+    if summarize:
+        # Define the summarizer model
 
-    # Define the summarizer model
-    summarizer_model = Summarizer()
+        summarizer_model = Summarizer()
+        # summarizer_model = SBertSummarizer('paraphrase-MiniLM-L6-v2')
 
-    transition_phrases = ["Moreover, ", "Furthermore, ",
-                          "In addition, ", "Similarly, ", "Also, "]
-    for cluster_label, cluster_data in CLSs_clusters.items():
-        print(f"\nCluster label: {cluster_label}")
-        summary = ""
-        for idx, (article, _) in enumerate(cluster_data):
-            summarized_text = summarize_text(article['text'], summarizer_model)
+        num_sentences = 3
 
-            if "—" in summarized_text:
-                summarized_text = summarized_text.split("—")[1]
+        transition_phrases = ["Moreover, ", "Furthermore, ",
+                              "In addition, ", "Similarly, ", "Also, "]
+        # *****************
+        #       CLS
+        # *****************
+        print("\n\n*** CLSs ***")
+        for cluster_label, cluster_data in CLSs_clusters.items():
+            print(f"\nCluster label: {cluster_label}")
+            summary = ""
+            for idx, (article, _) in enumerate(cluster_data):
+                summarized_text = summarize_text(article['text'], summarizer_model)
 
-            summarized_text = summarized_text.replace("\n", " ")
+                if "—" in summarized_text:
+                    summarized_text = summarized_text.split("—")[1]
 
-            if idx > 0:
-                summary += transition_phrases[idx % len(transition_phrases)] + summarized_text + ". "
-            else:
-                summary += summarized_text + ". "
-        print(f"Summarized text: {summary}")
+                summarized_text = summarized_text.replace("\n", " ")
 
-        # Generate a final summary for the whole cluster
-        final_summary = summarize_text(summary, summarizer_model)
-        print(f"Final Summary for cluster: {final_summary}")
+                if idx > 0:
+                    summary += transition_phrases[idx % len(transition_phrases)] + summarized_text + ". "
+                else:
+                    summary += summarized_text + ". "
+            print(f"Summarized text: {summary}")
+
+            # Generate a final summary for the whole cluster
+            final_summary = summarize_text(summary, summarizer_model, num_sentences=num_sentences)
+            print(f"Final Summary for cluster: {final_summary}")
+
+        # *****************
+        #   avg embedings
+        # *****************
+        print("\n\n*** avg embedings ***")
+        for cluster_label, cluster_data in avg_embs_clusters.items():
+            print(f"\nCluster label: {cluster_label}")
+            summary = ""
+            for idx, (article, _) in enumerate(cluster_data):
+                summarized_text = summarize_text(article['text'], summarizer_model)
+
+                if "—" in summarized_text:
+                    summarized_text = summarized_text.split("—")[1]
+
+                summarized_text = summarized_text.replace("\n", " ")
+
+                if idx > 0:
+                    summary += transition_phrases[idx % len(transition_phrases)] + summarized_text + ". "
+                else:
+                    summary += summarized_text + ". "
+            print(f"Summarized text: {summary}")
+
+            # Generate a final summary for the whole cluster
+            final_summary = summarize_text(summary, summarizer_model, num_sentences=num_sentences)
+            print(f"Final Summary for cluster: {final_summary}")
+
+        # *****************
+        #     finetune
+        # *****************
+        print("\n\n*** finetune ***")
+        for cluster_label, cluster_data in finetuned_clusters.items():
+            print(f"\nCluster label: {cluster_label}")
+            summary = ""
+            for idx, (article, _) in enumerate(cluster_data):
+                summarized_text = summarize_text(article['text'], summarizer_model)
+
+                if "—" in summarized_text:
+                    summarized_text = summarized_text.split("—")[1]
+
+                summarized_text = summarized_text.replace("\n", " ")
+
+                if idx > 0:
+                    summary += transition_phrases[idx % len(transition_phrases)] + summarized_text + ". "
+                else:
+                    summary += summarized_text + ". "
+            print(f"Summarized text: {summary}")
+
+            # Generate a final summary for the whole cluster
+            final_summary = summarize_text(summary, summarizer_model, num_sentences=num_sentences)
+            print(f"Final Summary for cluster: {final_summary}")
+
+
+
+
 
     internal_CLS_l2 = compute_internal_distance_metric(
         CLSs, function=l2_distance)
